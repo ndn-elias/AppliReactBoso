@@ -54,7 +54,7 @@ export default function TodoItem({ tache, onEditTodo, onDeleteTodo, onToggleReal
 
         <TouchableOpacity onPress={handleToggleRealisee} style={styles.button}>
           <Text style={styles.buttonText}>
-            {tache.estRealisee ? 'Non réalisée' : 'Réalisée'}
+            {tache.estRealisee ? 'Non réalisée' : 'Marquer comme terminée'}
           </Text>
         </TouchableOpacity>
       </View>
