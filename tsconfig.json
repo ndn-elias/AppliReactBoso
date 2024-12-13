@@ -10,8 +10,12 @@
   },
   "include": [
     "**/*.ts",
+    "**/*.js",
+    "**/*.jsx",
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-  ]
+, "app/(tabs)/index.jsx",
+"components/TodoList.js",
+"components/TodoItem.js"   ]
 }
