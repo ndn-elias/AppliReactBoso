@@ -1,4 +1,3 @@
-// TodoItem.js
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 
@@ -63,10 +62,37 @@ export default function TodoItem({ tache, onEditTodo, onDeleteTodo, onToggleReal
 }
 
 const styles = StyleSheet.create({
-  itemContainer: { marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
-  itemText: { fontSize: 18, width: '60%' },
-  input: { fontSize: 18, width: '60%', borderBottomWidth: 1, borderColor: '#ccc', paddingLeft: 5 },
-  buttonsContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '40%' },
-  button: { backgroundColor: '#4CAF50', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 5 },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
+  itemContainer: {
+    marginBottom: 15,
+    padding: 10,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  itemText: {
+    fontSize: 18,
+    marginBottom: 10, // Ajoute un espace entre le texte et les boutons
+  },
+  input: {
+    fontSize: 18,
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
+    paddingLeft: 5,
+  },
+  buttonsContainer: {
+    flexDirection: 'column', // Change l'orientation pour afficher les boutons en colonne
+    alignItems: 'flex-start', // Aligne les boutons à gauche
+  },
+  button: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 5,
+    marginBottom: 5, // Ajoute un espace entre les boutons
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
 });
