@@ -1,33 +1,57 @@
-// TodoList.js
-import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import TodoItem from './TodoItem';
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  fetchTasks,
+  editTask,
+  deleteTaskAction,
+  toggleTaskRealiseeAction,
+} from "../components/taskActions";
+import { View, Text, ActivityIndicator } from "react-native";
+import TodoItem from "./TodoItem";
 
-export default function TodoList({ taches, onEditTodo, onDeleteTodo, onToggleRealisee, navigation }) {
+export default function TodoList({ categorieFiltre }) {
+  const dispatch = useDispatch();
+  const { tasks, isLoading } = useSelector((state) => state.tasks);
+
+  useEffect(() => {
+    dispatch(fetchTasks());
+  }, [dispatch]);
+
+  if (isLoading) {
+    return (
+      <View>
+        <ActivityIndicator size="large" color="#4CAF50" />
+        <Text>Chargement des tâches...</Text>
+      </View>
+    );
+  }
+
+  // Application du filtre
+  const filteredTasks = categorieFiltre
+    ? tasks.filter((task) => task.categorie === categorieFiltre)
+    : tasks;
+
+  if (!filteredTasks || filteredTasks.length === 0) {
+    return (
+      <View>
+        <Text>Aucune tâche à afficher pour cette catégorie.</Text>
+      </View>
+    );
+  }
+
   return (
     <View>
-      {taches.map((tache) => (
-        <View key={tache.id} style={styles.itemWrapper}>
-          <TodoItem 
-            tache={tache} 
-            onEditTodo={onEditTodo} 
-            onDeleteTodo={onDeleteTodo} 
-            onToggleRealisee={onToggleRealisee}
-          />
-          <TouchableOpacity 
-            onPress={() => navigation.navigate('TodoDetails', { tache })} 
-            style={styles.detailsButton}
-          >
-            <Text style={styles.buttonText}>Détails</Text>
-          </TouchableOpacity>
-        </View>
+      {filteredTasks.map((task) => (
+        <TodoItem
+          key={task.id}
+          tache={task}
+          onEditTodo={(id, updatedTask) => dispatch(editTask(id, updatedTask))}
+          onDeleteTodo={(id) => dispatch(deleteTaskAction(id))}
+          onToggleRealisee={(id) =>
+            dispatch(toggleTaskRealiseeAction(id, task))
+          }
+        />
       ))}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  itemWrapper: { marginBottom: 15 },
-  detailsButton: { backgroundColor: '#007BFF', padding: 10, marginTop: 10 },
-  buttonText: { color: '#fff', fontWeight: 'bold', textAlign: 'center' },
-});

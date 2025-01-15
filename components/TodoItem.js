@@ -1,7 +1,18 @@
-import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import React, { useState } from "react";
+import {
+  View,
+  TextInput,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+} from "react-native";
 
-export default function TodoItem({ tache, onEditTodo, onDeleteTodo, onToggleRealisee }) {
+export default function TodoItem({
+  tache,
+  onEditTodo,
+  onDeleteTodo,
+  onToggleRealisee,
+}) {
   const [texte, setTexte] = useState(tache.texte);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -10,31 +21,33 @@ export default function TodoItem({ tache, onEditTodo, onDeleteTodo, onToggleReal
   };
 
   const handleSave = () => {
-    onEditTodo(tache.id, texte);
+    if (texte.trim() === "") {
+      alert("Le texte de la tâche ne peut pas être vide.");
+      return;
+    }
+    onEditTodo(tache.id, { ...tache, texte }); // Appelle Redux ou l'API
     setIsEditing(false);
   };
 
   const handleDelete = () => {
-    onDeleteTodo(tache.id);
+    onDeleteTodo(tache.id); // Appelle la fonction pour supprimer la tâche
   };
 
   const handleToggleRealisee = () => {
-    onToggleRealisee(tache.id);
+    onToggleRealisee(tache.id); // Appelle Redux pour inverser le statut
   };
 
   return (
     <View style={styles.itemContainer}>
-      <Text style={[styles.itemText, tache.estRealisee && styles.realiseeText]}>
-        {isEditing ? (
-          <TextInput
-            value={texte}
-            onChangeText={setTexte}
-            style={styles.input}
-          />
-        ) : (
-          tache.texte
-        )}
-      </Text>
+      {isEditing ? (
+        <TextInput value={texte} onChangeText={setTexte} style={styles.input} />
+      ) : (
+        <Text
+          style={[styles.itemText, tache.estRealisee && styles.realiseeText]}
+        >
+          {tache.texte}
+        </Text>
+      )}
 
       <View style={styles.buttonsContainer}>
         {isEditing ? (
@@ -53,7 +66,7 @@ export default function TodoItem({ tache, onEditTodo, onDeleteTodo, onToggleReal
 
         <TouchableOpacity onPress={handleToggleRealisee} style={styles.button}>
           <Text style={styles.buttonText}>
-            {tache.estRealisee ? 'Non réalisée' : 'Marquer comme terminée'}
+            {tache.estRealisee ? "Non réalisée" : "Marquer comme terminée"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -65,34 +78,39 @@ const styles = StyleSheet.create({
   itemContainer: {
     marginBottom: 15,
     padding: 10,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
   },
   itemText: {
     fontSize: 18,
     marginBottom: 10, // Ajoute un espace entre le texte et les boutons
   },
+  realiseeText: {
+    textDecorationLine: "line-through", // Barre le texte si la tâche est réalisée
+    color: "#888",
+  },
   input: {
     fontSize: 18,
     borderBottomWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     paddingLeft: 5,
+    marginBottom: 10,
   },
   buttonsContainer: {
-    flexDirection: 'column', // Change l'orientation pour afficher les boutons en colonne
-    alignItems: 'flex-start', // Aligne les boutons à gauche
+    flexDirection: "column", // Affiche les boutons en colonne
+    alignItems: "flex-start", // Aligne les boutons à gauche
   },
   button: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 5,
     marginBottom: 5, // Ajoute un espace entre les boutons
   },
   buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
   },
 });

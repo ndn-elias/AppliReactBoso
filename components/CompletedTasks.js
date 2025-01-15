@@ -1,9 +1,11 @@
 // CompletedTasks.js
-import React from 'react';
-import { View, Text, StyleSheet, Button, FlatList } from 'react-native';
+import React, { useEffect } from "react";
+import { View, Text, StyleSheet, Button, FlatList } from "react-native";
+
 
 export default function CompletedTasks({ route, navigation }) {
-  const { tachesTerminees } = route.params;  // Récupérer les tâches terminées passées via la navigation
+  const { tachesTerminees } = route.params; // Récupérer les tâches terminées passées via la navigation
+
 
   return (
     <View style={styles.container}>
