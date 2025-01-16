@@ -1,23 +1,26 @@
 // CompletedTaskDetails.js
 import React from "react";
 import { View, Text, StyleSheet, Button } from "react-native";
+import { useTranslation } from "react-i18next"; // <-- on importe le hook
 
 export default function CompletedTaskDetails({ route, navigation }) {
-  // On récupère la tâche transmise depuis CompletedTasks via la navigation
+  const { t } = useTranslation();
   const { tache } = route.params;
-
-  // tache contient toutes les infos : texte, categorie, priorite, etc.
-  // Par exemple : tache.texte, tache.categorie, tache.priorite
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Détails de la tâche terminée</Text>
-      <Text style={styles.info}>Texte : {tache.texte}</Text>
-      <Text style={styles.info}>Catégorie : {tache.categorie}</Text>
-      <Text style={styles.info}>Priorité : {tache.priorite}</Text>
-      {/* Ajoute d’autres champs si nécessaire */}
+      <Text style={styles.title}>{t("completedTaskDetails")}</Text>
+      <Text style={styles.info}>
+        {t("taskText")} {tache.texte}
+      </Text>
+      <Text style={styles.info}>
+        {t("taskCategory")} {tache.categorie}
+      </Text>
+      <Text style={styles.info}>
+        {t("taskPriority")} {tache.priorite}
+      </Text>
 
-      <Button title="Retour" onPress={() => navigation.goBack()} />
+      <Button title={t("back")} onPress={() => navigation.goBack()} />
     </View>
   );
 }

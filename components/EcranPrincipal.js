@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+// EcranPrincipal.js
+
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   TextInput,
@@ -8,73 +10,86 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import TodoList from "./TodoList";
-import { getTasks, addTask, updateTask, deleteTask } from "../app/(tabs)/api"; // Ton API locale
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSelector, useDispatch } from "react-redux";
+import { useTranslation } from "react-i18next"; // Pour traduire
+import useLanguage from "../hooks/useLanguage";
+import WeatherComponent from "./WeatherComponent";
+
+// Actions Redux hors-ligne
+import {
+  fetchTasks,
+  createTask,
+  editTask,
+  deleteTaskAction,
+  toggleTaskRealiseeAction,
+} from "./taskActions";
+
+import useNetworkStatus from "@/hooks/useNetworkStatus";
+import TodoList from "./TodoList";
 
 export default function EcranPrincipal({ navigation }) {
-  const [taches, setTaches] = useState([]);
-  const [tachesAffichees, setTachesAffichees] = useState([]);
-  const [nouvelleTache, setNouvelleTache] = useState("");
-  const [categorieFiltre, setCategorieFiltre] = useState("");
-  const [categorieTache, setCategorieTache] = useState("");
+  const PRIORITIES = ["high", "medium", "low"];
   const [prioriteTache, setPrioriteTache] = useState("");
-  const [isTaskAdded, setIsTaskAdded] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
+  const { changeLanguage } = useLanguage(); // <-- On récupère la fonction pour changer la langue
+  const dispatch = useDispatch();
 
-  // IMPORTANT: on initialise à 1 pour n'afficher qu'une seule tâche au démarrage
+  // Récupération depuis le store Redux
+  const { tasks, isLoading } = useSelector((state) => state.tasks);
+
+  // Champs locaux
+  const [nouvelleTache, setNouvelleTache] = useState("");
+  const [isTaskAdded, setIsTaskAdded] = useState(false);
+
+  // Filtre & pagination
+  const [categorieFiltre, setCategorieFiltre] = useState("");
   const [tachesAfficheesCount, setTachesAfficheesCount] = useState(1);
 
-  // Charger les tâches et le filtre
+  // Catégorie et priorité pour la dernière tâche ajoutée
+  const [categorieTache, setCategorieTache] = useState("");
+
+  const isConnected = useNetworkStatus();
+
+  // Au montage : charger le filtre + récupérer les tâches
   useEffect(() => {
-    const loadFilterAndTasks = async () => {
+    (async () => {
       try {
         const savedFilter = await AsyncStorage.getItem("categorieFiltre");
         if (savedFilter !== null) {
           setCategorieFiltre(savedFilter);
         }
-
-        const response = await getTasks();
-        setTaches(response.data);
-        console.log("Tâches récupérées :", response.data);
       } catch (error) {
-        console.error("Erreur lors du chargement :", error);
-      } finally {
-        setLoading(false);
+        console.log("Erreur lors de la récupération du filtre :", error);
       }
-    };
-    loadFilterAndTasks();
-  }, []);
+    })();
 
-  /**
-   * Appliquer le filtre et la pagination :
-   * - Filtre par catégorie si nécessaire
-   * - Ne prend que tachesAfficheesCount tâches
-   */
-  useEffect(() => {
-    let filteredTasks = taches;
+    dispatch(fetchTasks());
+  }, [dispatch]);
+
+  // Filtrage + pagination
+  const tachesAffichees = useMemo(() => {
+    if (!tasks) return [];
+    let resultat = tasks;
     if (categorieFiltre) {
-      filteredTasks = taches.filter(
+      resultat = resultat.filter(
         (tache) => tache.categorie === categorieFiltre
       );
     }
-    // On n'affiche que le nombre de tâches défini par tachesAfficheesCount
-    const slicedTasks = filteredTasks.slice(0, tachesAfficheesCount);
-    setTachesAffichees(slicedTasks);
-  }, [categorieFiltre, taches, tachesAfficheesCount]);
+    return resultat.slice(0, tachesAfficheesCount);
+  }, [tasks, categorieFiltre, tachesAfficheesCount]);
 
-  // Fonction pour charger plus de tâches
+  // Bouton "Charger plus"
   const handleLoadMore = () => {
-    setTachesAfficheesCount((prevCount) => prevCount + 1);
+    setTachesAfficheesCount((prev) => prev + 1);
   };
 
   // Ajouter une nouvelle tâche
-  const handleAddTodo = async () => {
+  const handleAddTodo = () => {
     if (nouvelleTache.trim() === "") {
-      alert("Le texte de la tâche ne peut pas être vide.");
+      alert(t("taskCannotBeEmpty"));
       return;
     }
-
     const newTache = {
       texte: nouvelleTache,
       categorie: "",
@@ -82,217 +97,185 @@ export default function EcranPrincipal({ navigation }) {
       estRealisee: false,
     };
 
-    try {
-      const response = await addTask(newTache);
-      setTaches((prevTaches) => [...prevTaches, response.data]);
-      setNouvelleTache("");
-      setIsTaskAdded(true);
-    } catch (error) {
-      console.error("Erreur lors de l'ajout de la tâche :", error);
+    dispatch(createTask(newTache));
+    setNouvelleTache("");
+    setIsTaskAdded(true);
+  };
+
+  // Éditer une tâche
+  const handleEditTodo = (id, updatedTask) => {
+    dispatch(editTask(id, updatedTask));
+  };
+
+  // Supprimer une tâche
+  const handleDeleteTodo = (id) => {
+    dispatch(deleteTaskAction(id));
+  };
+
+  // Toggle "réalisée"
+  const handleToggleRealisee = (id) => {
+    const tacheActuelle = tasks.find((t) => t.id === id);
+    if (tacheActuelle) {
+      dispatch(toggleTaskRealiseeAction(id, tacheActuelle));
     }
   };
 
-  // Mettre à jour une tâche
-  const handleEditTodo = async (id, updatedTask) => {
-    try {
-      const response = await updateTask(id, updatedTask);
-      setTaches((prevTaches) =>
-        prevTaches.map((tache) => (tache.id === id ? response.data : tache))
-      );
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour de la tâche :", error);
-    }
-  };
-
-  // Valider l'ajout de la tâche avec la catégorie et la priorité
-  const handleConfirmCategoryAndPriority = async () => {
+  // Valider la catégorie et la priorité
+  const handleConfirmCategoryAndPriority = () => {
     if (!categorieTache || !prioriteTache) {
-      alert(
-        "Veuillez sélectionner une catégorie et une priorité avant de valider."
-      );
+      alert(t("categoryAndPriorityRequired"));
       return;
     }
-
-    // On cherche la dernière tâche ajoutée qui n’a pas encore de catégorie
-    // (ou toute autre logique pour trouver la tâche à mettre à jour).
-    const taskToUpdate = taches.find((tache) => tache.categorie === "");
+    const taskToUpdate = [...tasks].reverse().find((t) => !t.categorie);
     if (taskToUpdate) {
       const updatedTask = {
         ...taskToUpdate,
         categorie: categorieTache,
         priorite: prioriteTache,
       };
-
-      try {
-        const response = await updateTask(taskToUpdate.id, updatedTask);
-        setTaches((prevTaches) =>
-          prevTaches.map((tache) =>
-            tache.id === taskToUpdate.id ? response.data : tache
-          )
-        );
-      } catch (error) {
-        console.error("Erreur lors de la mise à jour de la tâche :", error);
-      }
+      dispatch(editTask(taskToUpdate.id, updatedTask));
     }
-
     setCategorieTache("");
     setPrioriteTache("");
     setIsTaskAdded(false);
   };
 
-  // Supprimer une tâche
-  const handleDeleteTodo = async (id) => {
+  // Filtrer par catégorie et sauvegarder
+  const handleFiltrerParCategorie = async (cat) => {
+    setCategorieFiltre(cat);
     try {
-      await deleteTask(id);
-      setTaches((prevTaches) => prevTaches.filter((tache) => tache.id !== id));
+      await AsyncStorage.setItem("categorieFiltre", cat);
     } catch (error) {
-      console.error("Erreur lors de la suppression de la tâche :", error);
+      console.log("Erreur lors de la sauvegarde du filtre :", error);
     }
   };
 
-  // Basculer l'état "réalisée" d'une tâche
-  const handleToggleRealisee = async (id) => {
-    const taskToToggle = taches.find((tache) => tache.id === id);
-    if (taskToToggle) {
-      try {
-        const updatedTask = {
-          ...taskToToggle,
-          estRealisee: !taskToToggle.estRealisee,
-        };
-        const response = await updateTask(id, updatedTask);
-        setTaches((prevTaches) =>
-          prevTaches.map((tache) => (tache.id === id ? response.data : tache))
-        );
-      } catch (error) {
-        console.error("Erreur lors du changement de statut :", error);
-      }
-    }
-  };
-
-  // Filtrer les tâches par catégorie
-  const handleFiltrerParCategorie = async (categorie) => {
-    console.log("Catégorie sélectionnée :", categorie);
-    setCategorieFiltre(categorie);
-    try {
-      await AsyncStorage.setItem("categorieFiltre", categorie);
-      console.log("Filtre sauvegardé :", categorie);
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde du filtre :", error);
-    }
-  };
-
-  if (loading) {
+  // Si on est en train de charger
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4CAF50" />
-        <Text>Chargement des tâches...</Text>
+        <Text>{t("loadingTasks")}</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container}>
+      {/* Sélection catégorie + priorité si la tâche vient d’être ajoutée */}
       {isTaskAdded ? (
         <View style={styles.categorySelectionContainer}>
-          <Text style={styles.label}>Sélectionner la catégorie :</Text>
+          <Text style={styles.label}>{t("selectCategory")}</Text>
           <View style={styles.categoryButtonsContainer}>
-            {["Travail", "Maison", "Personnel"].map((categorie) => (
+            {[t("work"), t("home"), t("personal")].map((cat) => (
               <TouchableOpacity
-                key={categorie}
+                key={cat}
                 style={[
                   styles.categoryButton,
-                  categorieTache === categorie && styles.categoryButtonSelected,
+                  categorieTache === cat && styles.categoryButtonSelected,
                 ]}
-                onPress={() => setCategorieTache(categorie)}
+                onPress={() => setCategorieTache(cat)}
               >
                 <Text
                   style={[
                     styles.categoryButtonText,
-                    categorieTache === categorie &&
-                      styles.categoryButtonTextSelected,
+                    categorieTache === cat && styles.categoryButtonTextSelected,
                   ]}
                 >
-                  {categorie}
+                  {cat}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <Text style={styles.label}>Sélectionner la priorité :</Text>
-          <View style={styles.priorityButtonsContainer}>
-            {["Haute", "Moyenne", "Basse"].map((priorite) => (
-              <TouchableOpacity
-                key={priorite}
-                style={[
-                  styles.priorityButton,
-                  prioriteTache === priorite && styles.priorityButtonSelected,
-                ]}
-                onPress={() => setPrioriteTache(priorite)}
-              >
-                <Text
-                  style={[
-                    styles.priorityButtonText,
-                    prioriteTache === priorite &&
-                      styles.priorityButtonTextSelected,
-                  ]}
-                >
-                  {priorite}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <View style={styles.categorySelectionContainer}>
+            <Text style={styles.label}>{t("selectPriority")}</Text>
 
+            <View style={styles.priorityButtonsContainer}>
+              {PRIORITIES.map((priorityKey) => {
+                const label = t(priorityKey); // ex. "Haute" en FR, "High" en EN
+                return (
+                  <TouchableOpacity
+                    key={priorityKey}
+                    style={[
+                      styles.priorityButton,
+                      prioriteTache === priorityKey &&
+                        styles.priorityButtonSelected,
+                    ]}
+                    onPress={() => setPrioriteTache(priorityKey)}
+                  >
+                    <Text
+                      style={[
+                        styles.priorityButtonText,
+                        prioriteTache === priorityKey &&
+                          styles.priorityButtonTextSelected,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
           <TouchableOpacity
             style={styles.button}
             onPress={handleConfirmCategoryAndPriority}
           >
-            <Text style={styles.buttonText}>Confirmer</Text>
+            <Text style={styles.buttonText}>{t("confirm")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
+        // Formulaire d'ajout d'une nouvelle tâche
         <View>
           <TextInput
             value={nouvelleTache}
             onChangeText={setNouvelleTache}
-            placeholder="Nouvelle tâche"
+            placeholder={t("newTaskPlaceholder")}
             style={styles.input}
           />
           <TouchableOpacity style={styles.button} onPress={handleAddTodo}>
-            <Text style={styles.buttonText}>Ajouter une tâche</Text>
+            <Text style={styles.buttonText}>{t("addTask")}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Boutons de filtre par catégorie */}
       <View style={styles.filterContainer}>
-        <Text style={styles.filterText}>Filtrer par catégorie :</Text>
+        <Text style={styles.filterText}>{t("filterByCategory")}</Text>
         <View style={styles.categoryButtonsContainer}>
-          {["Tous", "Travail", "Maison", "Personnel"].map((categorie) => (
-            <TouchableOpacity
-              key={categorie}
-              style={[
-                styles.filterButton,
-                categorieFiltre === categorie && styles.filterButtonSelected,
-              ]}
-              onPress={() =>
-                handleFiltrerParCategorie(categorie === "Tous" ? "" : categorie)
-              }
-            >
-              <Text
+          {[t("all"), t("work"), t("home"), t("personal")].map((catLabel) => {
+            let catValue = "";
+            if (catLabel === t("all")) catValue = "";
+            if (catLabel === t("work")) catValue = "Travail";
+            if (catLabel === t("home")) catValue = "Maison";
+            if (catLabel === t("personal")) catValue = "Personnel";
+
+            return (
+              <TouchableOpacity
+                key={catLabel}
                 style={[
-                  styles.filterButtonText,
-                  categorieFiltre === categorie &&
-                    styles.filterButtonTextSelected,
+                  styles.filterButton,
+                  categorieFiltre === catValue && styles.filterButtonSelected,
                 ]}
+                onPress={() => handleFiltrerParCategorie(catValue)}
               >
-                {categorie}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.filterButtonText,
+                    categorieFiltre === catValue &&
+                      styles.filterButtonTextSelected,
+                  ]}
+                >
+                  {catLabel}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
-      {/* Liste de tâches (on lui envoie les tachesAffichees paginées/filtrées) */}
+      {/* Liste de tâches paginées + filtrées */}
       <TodoList
         taches={tachesAffichees}
         onDeleteTodo={handleDeleteTodo}
@@ -300,35 +283,52 @@ export default function EcranPrincipal({ navigation }) {
         onEditTodo={handleEditTodo}
       />
 
-      {/* Accès aux tâches terminées */}
+      {/* Bouton pour afficher les tâches terminées */}
       <TouchableOpacity
         onPress={() =>
           navigation.navigate("CompletedTasks", {
-            tachesTerminees: taches.filter((tache) => tache.estRealisee),
+            tachesTerminees: tasks.filter((t) => t.estRealisee),
           })
         }
         style={styles.completedButton}
       >
-        <Text style={styles.completedButtonText}>
-          Voir les tâches terminées
-        </Text>
+        <Text style={styles.completedButtonText}>{t("seeCompletedTasks")}</Text>
       </TouchableOpacity>
 
-      {/* Bouton "Charger plus" si on a encore des tâches à afficher */}
-      {tachesAffichees.length < taches.length && (
+      {/* "Charger plus" si on n'a pas tout affiché */}
+      {tachesAffichees.length < tasks.length && (
         <TouchableOpacity
           style={styles.loadMoreButton}
           onPress={handleLoadMore}
         >
-          <Text style={styles.loadMoreButtonText}>Charger plus</Text>
+          <Text style={styles.loadMoreButtonText}>{t("loadMore")}</Text>
         </TouchableOpacity>
       )}
+
+      {/* Sélecteur de langue stylé (FR / EN) */}
+      <View style={styles.languageSwitcherContainer}>
+        <TouchableOpacity
+          style={[styles.languageButton, { backgroundColor: "#4CAF50" }]}
+          onPress={() => changeLanguage("fr")}
+        >
+          <Text style={styles.languageButtonText}>FR</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.languageButton, { backgroundColor: "#2196F3" }]}
+          onPress={() => changeLanguage("en")}
+        >
+          <Text style={styles.languageButtonText}>EN</Text>
+        </TouchableOpacity>
+      </View>
+      <WeatherComponent />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   input: {
     height: 40,
     borderColor: "#ccc",
@@ -343,7 +343,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   buttonText: { color: "#fff", fontSize: 18 },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   label: { fontSize: 16, marginBottom: 10 },
   categorySelectionContainer: { marginBottom: 20 },
   categoryButtonsContainer: {
@@ -351,8 +350,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     marginVertical: 10,
   },
-  categoryButton: { padding: 10, borderWidth: 1, borderColor: "#ddd" },
-  categoryButtonSelected: { backgroundColor: "#4CAF50" },
+  categoryButton: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  categoryButtonSelected: {
+    backgroundColor: "#4CAF50",
+  },
   categoryButtonText: { fontSize: 16 },
   categoryButtonTextSelected: { color: "#fff" },
   priorityButtonsContainer: {
@@ -360,8 +365,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     marginBottom: 20,
   },
-  priorityButton: { padding: 10, borderWidth: 1, borderColor: "#ddd" },
-  priorityButtonSelected: { backgroundColor: "#4CAF50" },
+  priorityButton: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  priorityButtonSelected: {
+    backgroundColor: "#4CAF50",
+  },
   priorityButtonText: { fontSize: 16 },
   priorityButtonTextSelected: { color: "#fff" },
   filterContainer: { marginVertical: 20 },
@@ -372,7 +383,9 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     marginHorizontal: 5,
   },
-  filterButtonSelected: { backgroundColor: "#4CAF50" },
+  filterButtonSelected: {
+    backgroundColor: "#4CAF50",
+  },
   filterButtonText: { fontSize: 16 },
   filterButtonTextSelected: { color: "#fff" },
   completedButton: {
@@ -381,17 +394,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  completedButtonText: {
-    color: "#fff",
-    fontSize: 18,
-  },
+  completedButtonText: { color: "#fff", fontSize: 18 },
   loadMoreButton: {
     backgroundColor: "#FF9800",
     padding: 10,
     alignItems: "center",
     marginBottom: 20,
   },
-  loadMoreButtonText: {
+  loadMoreButtonText: { color: "#fff", fontSize: 16 },
+
+  // Ajout du style pour le sélecteur de langue
+  languageSwitcherContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+  languageButton: {
+    padding: 10,
+    marginHorizontal: 5,
+  },
+  languageButtonText: {
     color: "#fff",
     fontSize: 16,
   },

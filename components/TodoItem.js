@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
 } from "react-native";
+import { useTranslation } from "react-i18next"; // <-- on importe le hook
 
 export default function TodoItem({
   tache,
@@ -13,6 +14,7 @@ export default function TodoItem({
   onDeleteTodo,
   onToggleRealisee,
 }) {
+  const { t } = useTranslation();
   const [texte, setTexte] = useState(tache.texte);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -22,19 +24,19 @@ export default function TodoItem({
 
   const handleSave = () => {
     if (texte.trim() === "") {
-      alert("Le texte de la tâche ne peut pas être vide.");
+      alert(t("taskCannotBeEmpty")); // <-- traduction
       return;
     }
-    onEditTodo(tache.id, { ...tache, texte }); // Appelle Redux ou l'API
+    onEditTodo(tache.id, { ...tache, texte });
     setIsEditing(false);
   };
 
   const handleDelete = () => {
-    onDeleteTodo(tache.id); // Appelle la fonction pour supprimer la tâche
+    onDeleteTodo(tache.id);
   };
 
   const handleToggleRealisee = () => {
-    onToggleRealisee(tache.id); // Appelle Redux pour inverser le statut
+    onToggleRealisee(tache.id);
   };
 
   return (
@@ -52,21 +54,21 @@ export default function TodoItem({
       <View style={styles.buttonsContainer}>
         {isEditing ? (
           <TouchableOpacity onPress={handleSave} style={styles.button}>
-            <Text style={styles.buttonText}>Valider</Text>
+            <Text style={styles.buttonText}>{t("validate")}</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity onPress={handleEdit} style={styles.button}>
-            <Text style={styles.buttonText}>Modifier</Text>
+            <Text style={styles.buttonText}>{t("edit")}</Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity onPress={handleDelete} style={styles.button}>
-          <Text style={styles.buttonText}>Supprimer</Text>
+          <Text style={styles.buttonText}>{t("delete")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleToggleRealisee} style={styles.button}>
           <Text style={styles.buttonText}>
-            {tache.estRealisee ? "Non réalisée" : "Marquer comme terminée"}
+            {tache.estRealisee ? t("markUncompleted") : t("markCompleted")}
           </Text>
         </TouchableOpacity>
       </View>
@@ -84,10 +86,10 @@ const styles = StyleSheet.create({
   },
   itemText: {
     fontSize: 18,
-    marginBottom: 10, // Ajoute un espace entre le texte et les boutons
+    marginBottom: 10,
   },
   realiseeText: {
-    textDecorationLine: "line-through", // Barre le texte si la tâche est réalisée
+    textDecorationLine: "line-through",
     color: "#888",
   },
   input: {
@@ -98,15 +100,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   buttonsContainer: {
-    flexDirection: "column", // Affiche les boutons en colonne
-    alignItems: "flex-start", // Aligne les boutons à gauche
+    flexDirection: "column",
+    alignItems: "flex-start",
   },
   button: {
     backgroundColor: "#4CAF50",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 5,
-    marginBottom: 5, // Ajoute un espace entre les boutons
+    marginBottom: 5,
   },
   buttonText: {
     color: "#fff",

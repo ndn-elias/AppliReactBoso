@@ -1,4 +1,5 @@
 // CompletedTasks.js
+
 import React from "react";
 import {
   View,
@@ -8,18 +9,19 @@ import {
   FlatList,
   TouchableOpacity,
 } from "react-native";
+import { useTranslation } from "react-i18next"; // IMPORT pour la traduction
 
 export default function CompletedTasks({ route, navigation }) {
+  const { t } = useTranslation();
   const { tachesTerminees } = route.params;
 
-  // Fonction de navigation vers CompletedTaskDetails
   const handleDetails = (task) => {
     navigation.navigate("CompletedTaskDetails", { tache: task });
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tâches terminées</Text>
+      <Text style={styles.title}>{t("completedTasks")}</Text>
 
       <FlatList
         data={tachesTerminees}
@@ -28,13 +30,13 @@ export default function CompletedTasks({ route, navigation }) {
           <View style={styles.taskContainer}>
             <Text style={styles.taskText}>{item.texte}</Text>
             {/* Bouton pour afficher les détails de la tâche */}
-            <Button title="Détails" onPress={() => handleDetails(item)} />
+            <Button title={t("details")} onPress={() => handleDetails(item)} />
           </View>
         )}
       />
 
       <Button
-        title="Retour à l'écran principal"
+        title={t("backToMainScreen")}
         onPress={() => navigation.goBack()}
       />
     </View>
