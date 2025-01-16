@@ -76,7 +76,6 @@ export default function TodoItem({
 
 const styles = StyleSheet.create({
   itemContainer: {
-    marginBottom: 15,
     padding: 10,
     backgroundColor: "#f9f9f9",
     borderRadius: 8,

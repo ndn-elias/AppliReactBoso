@@ -9,30 +9,23 @@ import {
   ActivityIndicator,
 } from "react-native";
 import TodoList from "./TodoList";
-import {
-  getTasks,
-  addTask,
-  updateTask,
-  deleteTask,
-  toggleTaskRealiseeAction,
-} from "../app/(tabs)/api";
+import { getTasks, addTask, updateTask, deleteTask } from "../app/(tabs)/api"; // Ton API locale
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function EcranPrincipal({ navigation }) {
   const [taches, setTaches] = useState([]);
-  const [tachesAffichees, setTachesAffichees] = useState([]); // État pour les tâches affichées après filtre
+  const [tachesAffichees, setTachesAffichees] = useState([]);
   const [nouvelleTache, setNouvelleTache] = useState("");
   const [categorieFiltre, setCategorieFiltre] = useState("");
   const [categorieTache, setCategorieTache] = useState("");
   const [prioriteTache, setPrioriteTache] = useState("");
-  const [isCategorySelected, setIsCategorySelected] = useState(false);
   const [isTaskAdded, setIsTaskAdded] = useState(false);
   const [loading, setLoading] = useState(true);
-  const tachesFiltrees = categorieFiltre
-    ? taches.filter((tache) => tache.categorie === categorieFiltre)
-    : taches;
 
-  // Charger le filtre sauvegardé et les tâches
+  // IMPORTANT: on initialise à 1 pour n'afficher qu'une seule tâche au démarrage
+  const [tachesAfficheesCount, setTachesAfficheesCount] = useState(1);
+
+  // Charger les tâches et le filtre
   useEffect(() => {
     const loadFilterAndTasks = async () => {
       try {
@@ -40,6 +33,7 @@ export default function EcranPrincipal({ navigation }) {
         if (savedFilter !== null) {
           setCategorieFiltre(savedFilter);
         }
+
         const response = await getTasks();
         setTaches(response.data);
         console.log("Tâches récupérées :", response.data);
@@ -52,17 +46,27 @@ export default function EcranPrincipal({ navigation }) {
     loadFilterAndTasks();
   }, []);
 
-  // Appliquer le filtre lors de la modification de `categorieFiltre` ou des tâches
+  /**
+   * Appliquer le filtre et la pagination :
+   * - Filtre par catégorie si nécessaire
+   * - Ne prend que tachesAfficheesCount tâches
+   */
   useEffect(() => {
+    let filteredTasks = taches;
     if (categorieFiltre) {
-      const filteredTasks = taches.filter(
+      filteredTasks = taches.filter(
         (tache) => tache.categorie === categorieFiltre
       );
-      setTachesAffichees(filteredTasks);
-    } else {
-      setTachesAffichees(taches);
     }
-  }, [categorieFiltre, taches]);
+    // On n'affiche que le nombre de tâches défini par tachesAfficheesCount
+    const slicedTasks = filteredTasks.slice(0, tachesAfficheesCount);
+    setTachesAffichees(slicedTasks);
+  }, [categorieFiltre, taches, tachesAfficheesCount]);
+
+  // Fonction pour charger plus de tâches
+  const handleLoadMore = () => {
+    setTachesAfficheesCount((prevCount) => prevCount + 1);
+  };
 
   // Ajouter une nouvelle tâche
   const handleAddTodo = async () => {
@@ -87,9 +91,11 @@ export default function EcranPrincipal({ navigation }) {
       console.error("Erreur lors de l'ajout de la tâche :", error);
     }
   };
+
+  // Mettre à jour une tâche
   const handleEditTodo = async (id, updatedTask) => {
     try {
-      const response = await updateTask(id, updatedTask); // Appel API
+      const response = await updateTask(id, updatedTask);
       setTaches((prevTaches) =>
         prevTaches.map((tache) => (tache.id === id ? response.data : tache))
       );
@@ -107,6 +113,8 @@ export default function EcranPrincipal({ navigation }) {
       return;
     }
 
+    // On cherche la dernière tâche ajoutée qui n’a pas encore de catégorie
+    // (ou toute autre logique pour trouver la tâche à mettre à jour).
     const taskToUpdate = taches.find((tache) => tache.categorie === "");
     if (taskToUpdate) {
       const updatedTask = {
@@ -129,21 +137,20 @@ export default function EcranPrincipal({ navigation }) {
 
     setCategorieTache("");
     setPrioriteTache("");
-    setIsCategorySelected(false);
     setIsTaskAdded(false);
   };
 
   // Supprimer une tâche
   const handleDeleteTodo = async (id) => {
     try {
-      await deleteTask(id); // Appel API
+      await deleteTask(id);
       setTaches((prevTaches) => prevTaches.filter((tache) => tache.id !== id));
     } catch (error) {
       console.error("Erreur lors de la suppression de la tâche :", error);
     }
   };
 
-  // Marquer une tâche comme réalisée ou non réalisée
+  // Basculer l'état "réalisée" d'une tâche
   const handleToggleRealisee = async (id) => {
     const taskToToggle = taches.find((tache) => tache.id === id);
     if (taskToToggle) {
@@ -256,6 +263,7 @@ export default function EcranPrincipal({ navigation }) {
         </View>
       )}
 
+      {/* Boutons de filtre par catégorie */}
       <View style={styles.filterContainer}>
         <Text style={styles.filterText}>Filtrer par catégorie :</Text>
         <View style={styles.categoryButtonsContainer}>
@@ -284,15 +292,15 @@ export default function EcranPrincipal({ navigation }) {
         </View>
       </View>
 
+      {/* Liste de tâches (on lui envoie les tachesAffichees paginées/filtrées) */}
       <TodoList
-        categorieFiltre={categorieFiltre}
-        taches={tachesAffichees} // Utilisation des tâches affichées
+        taches={tachesAffichees}
         onDeleteTodo={handleDeleteTodo}
         onToggleRealisee={handleToggleRealisee}
         onEditTodo={handleEditTodo}
-        navigation={navigation}
       />
 
+      {/* Accès aux tâches terminées */}
       <TouchableOpacity
         onPress={() =>
           navigation.navigate("CompletedTasks", {
@@ -305,6 +313,16 @@ export default function EcranPrincipal({ navigation }) {
           Voir les tâches terminées
         </Text>
       </TouchableOpacity>
+
+      {/* Bouton "Charger plus" si on a encore des tâches à afficher */}
+      {tachesAffichees.length < taches.length && (
+        <TouchableOpacity
+          style={styles.loadMoreButton}
+          onPress={handleLoadMore}
+        >
+          <Text style={styles.loadMoreButtonText}>Charger plus</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -327,10 +345,11 @@ const styles = StyleSheet.create({
   buttonText: { color: "#fff", fontSize: 18 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   label: { fontSize: 16, marginBottom: 10 },
+  categorySelectionContainer: { marginBottom: 20 },
   categoryButtonsContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
-    marginBottom: 20,
+    marginVertical: 10,
   },
   categoryButton: { padding: 10, borderWidth: 1, borderColor: "#ddd" },
   categoryButtonSelected: { backgroundColor: "#4CAF50" },
@@ -346,7 +365,7 @@ const styles = StyleSheet.create({
   priorityButtonText: { fontSize: 16 },
   priorityButtonTextSelected: { color: "#fff" },
   filterContainer: { marginVertical: 20 },
-  filterText: { fontSize: 16 },
+  filterText: { fontSize: 16, marginBottom: 5 },
   filterButton: {
     padding: 10,
     borderWidth: 1,
@@ -356,4 +375,24 @@ const styles = StyleSheet.create({
   filterButtonSelected: { backgroundColor: "#4CAF50" },
   filterButtonText: { fontSize: 16 },
   filterButtonTextSelected: { color: "#fff" },
+  completedButton: {
+    backgroundColor: "#2196F3",
+    padding: 10,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  completedButtonText: {
+    color: "#fff",
+    fontSize: 18,
+  },
+  loadMoreButton: {
+    backgroundColor: "#FF9800",
+    padding: 10,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  loadMoreButtonText: {
+    color: "#fff",
+    fontSize: 16,
+  },
 });
