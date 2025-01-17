@@ -19,6 +19,9 @@ export default function CompletedTaskDetails({ route, navigation }) {
       <Text style={styles.info}>
         {t("taskPriority")} {tache.priorite}
       </Text>
+      <Text style={styles.text}>
+        Date d'exécution : {new Date(tache.dateExecution).toLocaleString()}
+      </Text>
 
       <Button title={t("back")} onPress={() => navigation.goBack()} />
     </View>

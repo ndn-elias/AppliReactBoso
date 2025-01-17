@@ -72,6 +72,10 @@ export default function TodoItem({
           </Text>
         </TouchableOpacity>
       </View>
+      <Text style={styles.itemText}>
+        {t("Date d'éxécution")}:{" "}
+        {new Date(tache.dateExecution).toLocaleString()}
+      </Text>
     </View>
   );
 }

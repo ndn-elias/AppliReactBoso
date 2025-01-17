@@ -27,6 +27,7 @@ import {
 
 import useNetworkStatus from "@/hooks/useNetworkStatus";
 import TodoList from "./TodoList";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 export default function EcranPrincipal({ navigation }) {
   const PRIORITIES = ["high", "medium", "low"];
@@ -34,7 +35,8 @@ export default function EcranPrincipal({ navigation }) {
   const { t } = useTranslation();
   const { changeLanguage } = useLanguage(); // <-- On récupère la fonction pour changer la langue
   const dispatch = useDispatch();
-
+  const [dateExecution, setDateExecution] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   // Récupération depuis le store Redux
   const { tasks, isLoading } = useSelector((state) => state.tasks);
 
@@ -95,6 +97,7 @@ export default function EcranPrincipal({ navigation }) {
       categorie: "",
       priorite: "",
       estRealisee: false,
+      dateExecution, // Ajout de la date d'exécution
     };
 
     dispatch(createTask(newTache));
@@ -102,6 +105,11 @@ export default function EcranPrincipal({ navigation }) {
     setIsTaskAdded(true);
   };
 
+  const handleDateChange = (event, selectedDate) => {
+    const currentDate = selectedDate || dateExecution;
+    setShowDatePicker(false);
+    setDateExecution(currentDate);
+  };
   // Éditer une tâche
   const handleEditTodo = (id, updatedTask) => {
     dispatch(editTask(id, updatedTask));
@@ -234,12 +242,25 @@ export default function EcranPrincipal({ navigation }) {
             placeholder={t("newTaskPlaceholder")}
             style={styles.input}
           />
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            style={styles.dateButton}
+          >
+            <Text style={styles.buttonText}>{t("selectExecutionDate")}</Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={dateExecution}
+              mode="datetime"
+              display="default"
+              onChange={handleDateChange}
+            />
+          )}
           <TouchableOpacity style={styles.button} onPress={handleAddTodo}>
             <Text style={styles.buttonText}>{t("addTask")}</Text>
           </TouchableOpacity>
         </View>
       )}
-
       {/* Boutons de filtre par catégorie */}
       <View style={styles.filterContainer}>
         <Text style={styles.filterText}>{t("filterByCategory")}</Text>
@@ -274,7 +295,6 @@ export default function EcranPrincipal({ navigation }) {
           })}
         </View>
       </View>
-
       {/* Liste de tâches paginées + filtrées */}
       <TodoList
         taches={tachesAffichees}
@@ -282,8 +302,7 @@ export default function EcranPrincipal({ navigation }) {
         onToggleRealisee={handleToggleRealisee}
         onEditTodo={handleEditTodo}
       />
-
-      {/* Bouton pour afficher les tâches terminées */}
+      ;{/* Bouton pour afficher les tâches terminées */}
       <TouchableOpacity
         onPress={() =>
           navigation.navigate("CompletedTasks", {
@@ -294,7 +313,6 @@ export default function EcranPrincipal({ navigation }) {
       >
         <Text style={styles.completedButtonText}>{t("seeCompletedTasks")}</Text>
       </TouchableOpacity>
-
       {/* "Charger plus" si on n'a pas tout affiché */}
       {tachesAffichees.length < tasks.length && (
         <TouchableOpacity
@@ -304,7 +322,6 @@ export default function EcranPrincipal({ navigation }) {
           <Text style={styles.loadMoreButtonText}>{t("loadMore")}</Text>
         </TouchableOpacity>
       )}
-
       {/* Sélecteur de langue stylé (FR / EN) */}
       <View style={styles.languageSwitcherContainer}>
         <TouchableOpacity

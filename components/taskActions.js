@@ -1,4 +1,4 @@
-// taskAction.js
+// taskActions.js
 import {
   getTasks,
   addTask,
@@ -6,8 +6,9 @@ import {
   deleteTask,
   toggleTaskRealisee,
 } from "../app/(tabs)/api";
-import { networkQueue } from "../services/networkQueue"; // on l'importe
-import NetInfo from "@react-native-community/netinfo"; // pour checker si en ligne
+import { networkQueue } from "../services/networkQueue"; // Pour la file hors-ligne
+import NetInfo from "@react-native-community/netinfo"; // Pour vérifier l'état du réseau
+import { scheduleNotification } from "../services/notificationsService"; // Pour les notifications
 
 // -------------------------------------------------
 // Récupération des tâches (en ligne seulement)
@@ -24,26 +25,28 @@ export const fetchTasks = () => async (dispatch) => {
 };
 
 // -------------------------------------------------
-// Création d'une tâche
+// Création d'une tâche avec programmation de notification
 export const createTask = (task) => async (dispatch) => {
   const netState = await NetInfo.fetch();
   const isConnected = netState.isConnected;
 
   if (isConnected) {
-    // En ligne
     try {
-      const response = await addTask(task); // appel direct MockAPI
+      const response = await addTask(task); // Envoi direct à l'API
       dispatch({ type: "ADD_TASK", payload: response.data });
+
+      if (task.dateExecution) {
+        await scheduleNotification({
+          texte: task.texte,
+          dateExecution: new Date(task.dateExecution), // S'assurer que c'est une date valide
+        });
+      }
     } catch (error) {
       console.error("Erreur lors de la création de la tâche :", error);
     }
   } else {
-    // Hors ligne -> on push l'action dans la file d'attente
-    // On met quand même à jour le store localement
-    // On peut créer un id temporaire
-    const tempId = "temp-" + Date.now();
+    const tempId = `temp-${Date.now()}`;
     dispatch({ type: "ADD_TASK", payload: { ...task, id: tempId } });
-    // On stocke l'action dans la queue pour plus tard
     await networkQueue.addAction({ type: "ADD_TASK", payload: task });
   }
 };
@@ -55,15 +58,18 @@ export const editTask = (id, updatedTask) => async (dispatch) => {
   const isConnected = netState.isConnected;
 
   if (isConnected) {
-    // En ligne
     try {
       const response = await updateTask(id, updatedTask);
       dispatch({ type: "EDIT_TASK", payload: response.data });
+
+      // Mettre à jour la notification si la date d'exécution est modifiée
+      if (updatedTask.dateExecution) {
+        await scheduleNotification(updatedTask);
+      }
     } catch (error) {
       console.error("Erreur lors de la modification de la tâche :", error);
     }
   } else {
-    // Hors ligne
     dispatch({ type: "EDIT_TASK", payload: { ...updatedTask, id } });
     await networkQueue.addAction({
       type: "EDIT_TASK",
@@ -79,7 +85,6 @@ export const deleteTaskAction = (id) => async (dispatch) => {
   const isConnected = netState.isConnected;
 
   if (isConnected) {
-    // En ligne
     try {
       await deleteTask(id);
       dispatch({ type: "DELETE_TASK", payload: id });
@@ -87,7 +92,6 @@ export const deleteTaskAction = (id) => async (dispatch) => {
       console.error("Erreur lors de la suppression de la tâche :", error);
     }
   } else {
-    // Hors ligne
     dispatch({ type: "DELETE_TASK", payload: id });
     await networkQueue.addAction({ type: "DELETE_TASK", payload: id });
   }
@@ -106,10 +110,9 @@ export const toggleTaskRealiseeAction =
     const isConnected = netState.isConnected;
 
     if (isConnected) {
-      // En ligne
       try {
         const response = await toggleTaskRealisee(id, updatedTask);
-        dispatch({ type: "TOGGLE_TASK_REAISEE", payload: response.data });
+        dispatch({ type: "TOGGLE_TASK_REALISEE", payload: response.data });
       } catch (error) {
         console.error(
           "Erreur lors du changement de statut de la tâche :",
@@ -117,13 +120,12 @@ export const toggleTaskRealiseeAction =
         );
       }
     } else {
-      // Hors ligne
       dispatch({
-        type: "TOGGLE_TASK_REAISEE",
+        type: "TOGGLE_TASK_REALISEE",
         payload: { ...updatedTask, id },
       });
       await networkQueue.addAction({
-        type: "TOGGLE_TASK_REAISEE",
+        type: "TOGGLE_TASK_REALISEE",
         payload: { ...updatedTask, id },
       });
     }

@@ -12,7 +12,13 @@ export default function taskReducer(state = initialState, action) {
     case "TASKS_LOADING_DONE":
       return { ...state, isLoading: false };
     case "ADD_TASK":
-      return { ...state, tasks: [...state.tasks, action.payload] };
+      return {
+        ...state,
+        tasks: [
+          ...state.tasks,
+          { ...action.payload, dateExecution: action.payload.dateExecution },
+        ],
+      };
     case "EDIT_TASK":
       return {
         ...state,
@@ -25,7 +31,7 @@ export default function taskReducer(state = initialState, action) {
         ...state,
         tasks: state.tasks.filter((tache) => tache.id !== action.payload),
       };
-    case "TOGGLE_TASK_REAISEE":
+    case "TOGGLE_TASK_REALISEE":
       return {
         ...state,
         tasks: state.tasks.map((tache) =>
